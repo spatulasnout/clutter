@@ -672,7 +672,7 @@ clutter_event_check (GSource *source)
   if (current_loop_level == 0)
     {
       if (autorelease_pool)
-	[autorelease_pool release];
+	    [autorelease_pool release];
       autorelease_pool = [[NSAutoreleasePool alloc] init];
     }
   
@@ -749,8 +749,8 @@ poll_func (GPollFD *ufds,
 
   getting_events = TRUE;
   event = [NSApp nextEventMatchingMask: NSAnyEventMask
-	                     untilDate: limit_date
-	                        inMode: NSDefaultRunLoopMode
+                             untilDate: limit_date
+                                inMode: NSDefaultRunLoopMode
                                dequeue: YES];
   getting_events = FALSE;
 
@@ -969,6 +969,7 @@ run_loop_exit (void)
     {
       g_main_context_release (NULL);
       acquired_loop_level = -1;
+      autorelease_pool = nil; /* Cocoa event loop will have already freed this */
       CLUTTER_NOTE (EVENTLOOP, "EventLoop: Ended tracking run loop activity\n");
     }
   
@@ -982,7 +983,9 @@ run_loop_observer_callback (CFRunLoopObserverRef observer,
 {
   if (getting_events) /* Activity we triggered */
     return;
-  
+  if (activity != kCFRunLoopEntry && current_loop_level == 0)	/* Don't handle if loop not running */
+    return;
+
   switch (activity)
     {
     case kCFRunLoopEntry:

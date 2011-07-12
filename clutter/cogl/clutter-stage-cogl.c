@@ -124,7 +124,7 @@ clutter_stage_cogl_realize (ClutterStageWindow *stage_window)
 #ifdef COGL_HAS_XLIB_SUPPORT
   if (stage_x11->xwin != None)
     {
-      cogl_onscreen_x11_set_foreign_window_xid (stage_cogl->onscreen,
+      cogl_x11_onscreen_set_foreign_window_xid (stage_cogl->onscreen,
                                                 stage_x11->xwin,
                                                 _clutter_stage_x11_update_foreign_event_mask,
                                                 stage_x11);
@@ -160,7 +160,7 @@ clutter_stage_cogl_realize (ClutterStageWindow *stage_window)
 
 #ifdef COGL_HAS_XLIB_SUPPORT
   if (stage_x11->xwin == None)
-    stage_x11->xwin = cogl_onscreen_x11_get_window_xid (stage_cogl->onscreen);
+    stage_x11->xwin = cogl_x11_onscreen_get_window_xid (stage_cogl->onscreen);
 
   return clutter_stage_window_parent_iface->realize (stage_window);
 #else
@@ -342,13 +342,13 @@ clutter_stage_cogl_redraw (ClutterStageWindow *stage_window)
                         0 /* no application private data */);
   CLUTTER_STATIC_TIMER (swapbuffers_timer,
                         "Redrawing", /* parent */
-                        "eglSwapBuffers",
-                        "The time spent blocked by eglSwapBuffers",
+                        "SwapBuffers",
+                        "The time spent blocked by SwapBuffers",
                         0 /* no application private data */);
   CLUTTER_STATIC_TIMER (blit_sub_buffer_timer,
                         "Redrawing", /* parent */
-                        "egl_blit_sub_buffer",
-                        "The time spent in _egl_blit_sub_buffer",
+                        "blit_sub_buffer",
+                        "The time spent in blit_sub_buffer",
                         0 /* no application private data */);
 
 #ifdef COGL_HAS_X11_SUPPORT

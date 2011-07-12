@@ -42,81 +42,131 @@ test_atk_text (ClutterActor *actor)
   AtkText         *cally_text = NULL;
   gboolean         bool       = FALSE;
   gunichar         unichar;
-  gchar            buf[7];
   gint             count      = -1;
   gint             start      = -1;
   gint             end        = -1;
   gint             pos        = -1;
   AtkAttributeSet *at_set     = NULL;
+  GSList          *attrs;
+  gchar           *buf;
+  gint             x, y, width, height;
 
   object = atk_gobject_accessible_for_object (G_OBJECT (actor));
   cally_text = ATK_TEXT (object);
 
-  if (cally_text != NULL) {
-    text = atk_text_get_text (cally_text, 0, -1);
-    g_print ("atk_text_get_text output: %s\n", text);
-    g_free (text); text = NULL;
+  if (!cally_text)
+      return;
 
-    unichar = atk_text_get_character_at_offset (cally_text, 5);
-    g_unichar_to_utf8 (unichar, buf);
-    g_print ("atk_text_get_character_at_offset: %s\n", buf);
+  text = atk_text_get_text (cally_text, 0, -1);
+  g_print ("atk_text_get_text output: %s\n", text);
 
-    text = atk_text_get_text_before_offset (cally_text,
-                                            5, ATK_TEXT_BOUNDARY_WORD_END,
-                                            &start, &end);
-    g_print ("atk_text_get_text_before_offset: %s, %i, %i\n",
-            text, start, end);
-    g_free (text); text = NULL;
+  unichar = atk_text_get_character_at_offset (cally_text, 5);
+  buf = g_ucs4_to_utf8 (&unichar, 1, NULL, NULL, NULL);
+  g_print ("atk_text_get_character_at_offset(5): '%s' vs '%c'\n", buf, text[5]);
+  g_free (text); text = NULL;
+  g_free (buf); buf = NULL;
 
-    text = atk_text_get_text_at_offset (cally_text,
-                                        5, ATK_TEXT_BOUNDARY_WORD_END,
-                                        &start, &end);
-    g_print ("atk_text_get_text_at_offset: %s, %i, %i\n",
-            text, start, end);
-    g_free (text); text = NULL;
-
-    text = atk_text_get_text_after_offset (cally_text,
-                                           5, ATK_TEXT_BOUNDARY_WORD_END,
-                                           &start, &end);
-    g_print ("atk_text_get_text_after_offset: %s, %i, %i\n",
-            text, start, end);
-    g_free (text); text = NULL;
-
-    pos = atk_text_get_caret_offset (cally_text);
-    g_print ("atk_text_get_caret_offset: %i\n", pos);
-
-    atk_text_set_caret_offset (cally_text, 5);
-
-    count = atk_text_get_character_count (cally_text);
-    g_print ("atk_text_get_character_count: %i\n", count);
-
-    count = atk_text_get_n_selections (cally_text);
-    g_print ("atk_text_get_n_selections: %i\n", count);
-
-    text = atk_text_get_selection (cally_text, 0, &start, &end);
-    g_print ("atk_text_get_selection: %s, %i, %i\n", text, start, end);
-    g_free(text); text = NULL;
-
-    bool = atk_text_remove_selection (cally_text, 0);
-    g_print ("atk_text_remove_selection (0): %i\n", bool);
-
-    bool = atk_text_remove_selection (cally_text, 1);
-    g_print ("atk_text_remove_selection (1): %i\n", bool);
-
-    bool = atk_text_add_selection (cally_text, 5, 10);
-    g_print ("atk_text_add_selection: %i\n", bool);
-
-    bool = atk_text_set_selection (cally_text, 0, 6, 10);
-    g_print ("atk_text_set_selection: %i\n", bool);
-
-    at_set = atk_text_get_run_attributes (cally_text, 10,
+  text = atk_text_get_text_before_offset (cally_text,
+                                          5, ATK_TEXT_BOUNDARY_WORD_END,
                                           &start, &end);
-    g_print ("atk_text_get_run_attributes: %i, %i\n", start, end);
+  g_print ("atk_text_get_text_before_offset: %s, %i, %i\n",
+           text, start, end);
+  g_free (text); text = NULL;
 
-    at_set = atk_text_get_default_attributes (cally_text);
-    g_print ("atk_text_get_default_attributes: (at_set==NULL) == %i \n",
-             at_set == NULL);
+  text = atk_text_get_text_at_offset (cally_text,
+                                      5, ATK_TEXT_BOUNDARY_WORD_END,
+                                      &start, &end);
+  g_print ("atk_text_get_text_at_offset: %s, %i, %i\n",
+           text, start, end);
+  g_free (text); text = NULL;
 
+  text = atk_text_get_text_after_offset (cally_text,
+                                         5, ATK_TEXT_BOUNDARY_WORD_END,
+                                         &start, &end);
+  g_print ("atk_text_get_text_after_offset: %s, %i, %i\n",
+           text, start, end);
+  g_free (text); text = NULL;
+
+  pos = atk_text_get_caret_offset (cally_text);
+  g_print ("atk_text_get_caret_offset: %i\n", pos);
+
+  atk_text_set_caret_offset (cally_text, 5);
+
+  count = atk_text_get_character_count (cally_text);
+  g_print ("atk_text_get_character_count: %i\n", count);
+
+  count = atk_text_get_n_selections (cally_text);
+  g_print ("atk_text_get_n_selections: %i\n", count);
+
+  text = atk_text_get_selection (cally_text, 0, &start, &end);
+  g_print ("atk_text_get_selection: %s, %i, %i\n", text, start, end);
+  g_free(text); text = NULL;
+
+  bool = atk_text_remove_selection (cally_text, 0);
+  g_print ("atk_text_remove_selection (0): %i\n", bool);
+
+  bool = atk_text_remove_selection (cally_text, 1);
+  g_print ("atk_text_remove_selection (1): %i\n", bool);
+
+  bool = atk_text_add_selection (cally_text, 5, 10);
+  g_print ("atk_text_add_selection: %i\n", bool);
+
+  bool = atk_text_set_selection (cally_text, 0, 6, 10);
+  g_print ("atk_text_set_selection: %i\n", bool);
+
+  at_set = atk_text_get_run_attributes (cally_text, 0,
+                                        &start, &end);
+  g_print ("atk_text_get_run_attributes: %i, %i\n", start, end);
+  attrs = (GSList*) at_set;
+  while (attrs)
+    {
+        AtkAttribute *at = (AtkAttribute *) attrs->data;
+        g_print ("text run %s = %s\n", at->name, at->value);
+        attrs = g_slist_next (attrs);
+    }
+
+  atk_text_get_character_extents (cally_text, 0, &x, &y, &width, &height,
+                                  ATK_XY_WINDOW);
+  g_print ("atk_text_get_character_extents (0, window): x=%i y=%i width=%i height=%i\n",
+           x, y, width, height);
+
+  atk_text_get_character_extents (cally_text, 0, &x, &y, &width, &height,
+                                  ATK_XY_SCREEN);
+  g_print ("atk_text_get_character_extents (0, screen): x=%i y=%i width=%i height=%i\n",
+           x, y, width, height);
+
+  pos = atk_text_get_offset_at_point (cally_text, 200, 10, ATK_XY_WINDOW);
+  g_print ("atk_text_get_offset_at_point (200, 10, window): %i\n", pos);
+
+  pos = atk_text_get_offset_at_point (cally_text, 200, 100, ATK_XY_SCREEN);
+  g_print ("atk_text_get_offset_at_point (200, 100, screen): %i\n", pos);
+
+}
+
+static void
+dump_actor_default_atk_attributes (ClutterActor *actor)
+{
+  AtkObject       *object     = NULL;
+  AtkText         *cally_text = NULL;
+  AtkAttributeSet *at_set     = NULL;
+  GSList          *attrs;
+  const gchar     *text_value = NULL;
+
+  object = atk_gobject_accessible_for_object (G_OBJECT (actor));
+  cally_text = ATK_TEXT (object);
+
+  if (!cally_text)
+      return;
+
+  text_value = clutter_text_get_text (CLUTTER_TEXT (actor));
+  g_print ("text value = %s\n", text_value);
+
+  at_set = atk_text_get_default_attributes (cally_text);
+  attrs = (GSList*) at_set;
+  while (attrs) {
+      AtkAttribute *at = (AtkAttribute *) attrs->data;
+      g_print ("text default %s = %s\n", at->name, at->value);
+      attrs = g_slist_next (attrs);
   }
 }
 
@@ -148,15 +198,18 @@ make_ui (ClutterActor *stage)
 
   /* text */
   text_actor = clutter_text_new_full ("Sans Bold 32px",
-                                      "Lorem ipsum dolor sit amet",
+                                      "",
                                       &color_text);
+  clutter_text_set_markup (CLUTTER_TEXT(text_actor),
+                           "<span fgcolor=\"#FFFF00\" bgcolor=\"#00FF00\"><s>Lorem ipsum dolor sit amet</s></span>");
   clutter_container_add_actor (CLUTTER_CONTAINER (stage), text_actor);
+  dump_actor_default_atk_attributes (text_actor);
 
   /* text_editable */
   text_editable_actor = clutter_text_new_full ("Sans Bold 32px",
                                                "consectetur adipisicing elit",
                                                &color_text);
-  clutter_actor_set_position (text_editable_actor, 0, 100);
+  clutter_actor_set_position (text_editable_actor, 20, 100);
   clutter_text_set_editable (CLUTTER_TEXT (text_editable_actor), TRUE);
   clutter_text_set_selectable (CLUTTER_TEXT (text_editable_actor), TRUE);
   clutter_text_set_selection_color (CLUTTER_TEXT (text_editable_actor),
@@ -164,6 +217,7 @@ make_ui (ClutterActor *stage)
   clutter_text_set_line_wrap (CLUTTER_TEXT (text_editable_actor), TRUE);
   clutter_actor_grab_key_focus (text_editable_actor);
   clutter_actor_set_reactive (text_editable_actor, TRUE);
+  dump_actor_default_atk_attributes (text_editable_actor);
 
   clutter_container_add_actor (CLUTTER_CONTAINER (stage), text_editable_actor);
 

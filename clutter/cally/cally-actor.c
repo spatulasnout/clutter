@@ -151,6 +151,8 @@ static const gchar*          cally_actor_get_name            (AtkObject *obj);
 static gint                  cally_actor_get_n_children      (AtkObject *obj);
 static AtkObject*            cally_actor_ref_child           (AtkObject *obj,
                                                              gint       i);
+static AtkAttributeSet *     cally_actor_get_attributes      (AtkObject *obj);
+
 static gboolean             _cally_actor_all_parents_visible (ClutterActor *actor);
 
 /* ClutterContainer */
@@ -184,9 +186,6 @@ static void     cally_actor_remove_focus_handler     (AtkComponent *component,
 static void     cally_actor_focus_event              (AtkObject   *obj,
                                                       gboolean    focus_in);
 static gboolean _is_actor_on_screen                 (ClutterActor *actor);
-static void     _get_top_level_origin               (ClutterActor *actor,
-                                                     gint         *x,
-                                                     gint         *y);
 
 /* AtkAction.h */
 static void                  cally_actor_action_interface_init  (AtkActionIface *iface);
@@ -353,6 +352,7 @@ cally_actor_class_init (CallyActorClass *klass)
   class->initialize          = cally_actor_initialize;
   class->get_n_children      = cally_actor_get_n_children;
   class->ref_child           = cally_actor_ref_child;
+  class->get_attributes      = cally_actor_get_attributes;
 
   g_type_class_add_private (gobject_class, sizeof (CallyActorPrivate));
 }
@@ -634,6 +634,21 @@ cally_actor_ref_child (AtkObject *obj,
   return result;
 }
 
+static AtkAttributeSet *
+cally_actor_get_attributes (AtkObject *obj)
+{
+  AtkAttributeSet *attributes;
+  AtkAttribute *toolkit;
+
+  toolkit = g_new (AtkAttribute, 1);
+  toolkit->name = g_strdup ("toolkit");
+  toolkit->value = g_strdup ("clutter");
+
+  attributes = g_slist_append (NULL, toolkit);
+
+  return attributes;
+}
+
 /* ClutterContainer */
 static gint
 cally_actor_add_actor (ClutterActor *container,
@@ -791,7 +806,7 @@ cally_actor_get_extents (AtkComponent *component,
 
   if (coord_type == ATK_XY_SCREEN)
     {
-      _get_top_level_origin (actor, &top_level_x, &top_level_y);
+      _cally_actor_get_top_level_origin (actor, &top_level_x, &top_level_y);
 
       *x += top_level_x;
       *y += top_level_y;
@@ -896,14 +911,14 @@ _is_actor_on_screen (ClutterActor *actor)
  * required
  *
  */
-static void
-_get_top_level_origin (ClutterActor *actor,
-                       gint         *x,
-                       gint         *y)
+void
+_cally_actor_get_top_level_origin (ClutterActor *actor,
+                                   gint         *xp,
+                                   gint         *yp)
 {
   /* default values */
-  *x = 0;
-  *y = 0;
+  gint x = 0;
+  gint y = 0;
 
 #ifdef HAVE_CLUTTER_GLX
   {
@@ -923,7 +938,7 @@ _get_top_level_origin (ClutterActor *actor,
     stage_window = clutter_x11_get_stage_window (CLUTTER_STAGE (stage));
 
     return_val = XTranslateCoordinates (display, stage_window, root_window,
-                                        0, 0, x, y,
+                                        0, 0, &x, &y,
                                         &child);
 
     if (!return_val)
@@ -944,6 +959,12 @@ _get_top_level_origin (ClutterActor *actor,
       }
   }
 #endif
+
+  if (xp)
+      *xp = x;
+
+  if (yp)
+      *yp = y;
 }
 
 /* AtkAction implementation */

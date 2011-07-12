@@ -1215,10 +1215,10 @@ clutter_texture_class_init (ClutterTextureClass *klass)
 		  G_SIGNAL_RUN_LAST,
 		  G_STRUCT_OFFSET (ClutterTextureClass, load_finished),
 		  NULL, NULL,
-		  _clutter_marshal_VOID__POINTER,
+		  _clutter_marshal_VOID__BOXED,
 		  G_TYPE_NONE,
 		  1,
-                  G_TYPE_POINTER);
+                  G_TYPE_ERROR);
 }
 
 static ClutterScriptableIface *parent_scriptable_iface = NULL;
@@ -1581,7 +1581,7 @@ clutter_texture_set_from_data (ClutterTexture     *texture,
 /**
  * clutter_texture_set_from_rgb_data:
  * @texture: A #ClutterTexture
- * @data: Image data in RGBA type colorspace.
+ * @data: (array): Image data in RGBA type colorspace.
  * @has_alpha: Set to TRUE if image data has an alpha channel.
  * @width: Width in pixels of image data.
  * @height: Height in pixels of image data
@@ -1659,7 +1659,7 @@ clutter_texture_set_from_rgb_data (ClutterTexture       *texture,
 /**
  * clutter_texture_set_from_yuv_data:
  * @texture: A #ClutterTexture
- * @data: Image data in YUV type colorspace.
+ * @data: (array): Image data in YUV type colorspace.
  * @width: Width in pixels of image data.
  * @height: Height in pixels of image data
  * @flags: #ClutterTextureFlags
@@ -2257,7 +2257,7 @@ clutter_texture_get_base_size (ClutterTexture *texture,
 /**
  * clutter_texture_set_area_from_rgb_data:
  * @texture: A #ClutterTexture
- * @data: Image data in RGB type colorspace.
+ * @data: (array): Image data in RGB type colorspace.
  * @has_alpha: Set to TRUE if image data has an alpha channel.
  * @x: X coordinate of upper left corner of region to update.
  * @y: Y coordinate of upper left corner of region to update.
@@ -2540,6 +2540,10 @@ fbo_source_queue_relayout_cb (ClutterActor *source,
  * </itemizedlist>
  *
  * Return value: A newly created #ClutterTexture object, or %NULL on failure.
+ *
+ * Deprecated: 1.8: Use the #ClutterOffscreenEffect and #ClutterShaderEffect
+ *   directly on the intended #ClutterActor to replace the functionality of
+ *   this function.
  *
  * Since: 0.6
  */

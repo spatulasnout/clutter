@@ -39,7 +39,6 @@ check_pixel (TestState *state, int x, int y, guint32 color)
 
   /* See what we got... */
 
-  /* NB: glReadPixels is done in GL screen space so y = 0 is at the bottom */
   y_off = y * QUAD_WIDTH + (QUAD_WIDTH / 2);
   x_off = x * QUAD_WIDTH + (QUAD_WIDTH / 2);
 
@@ -127,6 +126,15 @@ test_invalid_texture_layers (TestState *state, int x, int y)
   test_material_with_primitives (state, x, y, 0xffffffff);
 }
 
+static gboolean
+using_gles2_driver (void)
+{
+  /* FIXME: This should probably be replaced with some way to query
+     the driver from Cogl */
+  return g_str_has_prefix ((const char *) glGetString (GL_VERSION),
+                           "OpenGL ES 2");
+}
+
 static void
 test_using_all_layers (TestState *state, int x, int y)
 {
@@ -154,23 +162,29 @@ test_using_all_layers (TestState *state, int x, int y)
 
   /* FIXME: Cogl doesn't provide a way to query the maximum number of
      texture layers so for now we'll just ask GL directly. */
-#ifdef HAVE_COGL_GLES2
-  {
-    GLint n_image_units, n_attribs;
-    /* GLES 2 doesn't have GL_MAX_TEXTURE_UNITS and it uses
-       GL_MAX_TEXTURE_IMAGE_UNITS instead */
-    glGetIntegerv (GL_MAX_TEXTURE_IMAGE_UNITS, &n_image_units);
-    /* Cogl needs a vertex attrib for each layer to upload the texture
-       coordinates */
-    glGetIntegerv (GL_MAX_VERTEX_ATTRIBS, &n_attribs);
-    /* We can't use two of the attribs because they are used by the
-       position and color */
-    n_attribs -= 2;
-    n_layers = MIN (n_attribs, n_image_units);
-  }
-#else
-  glGetIntegerv (GL_MAX_TEXTURE_UNITS, &n_layers);
+#ifdef COGL_HAS_GLES2
+  if (using_gles2_driver ())
+    {
+      GLint n_image_units, n_attribs;
+      /* GLES 2 doesn't have GL_MAX_TEXTURE_UNITS and it uses
+         GL_MAX_TEXTURE_IMAGE_UNITS instead */
+      glGetIntegerv (GL_MAX_TEXTURE_IMAGE_UNITS, &n_image_units);
+      /* Cogl needs a vertex attrib for each layer to upload the texture
+         coordinates */
+      glGetIntegerv (GL_MAX_VERTEX_ATTRIBS, &n_attribs);
+      /* We can't use two of the attribs because they are used by the
+         position and color */
+      n_attribs -= 2;
+      n_layers = MIN (n_attribs, n_image_units);
+    }
+  else
 #endif
+    {
+#if defined(COGL_HAS_GLES1) || defined(COGL_HAS_GL)
+      glGetIntegerv (GL_MAX_TEXTURE_UNITS, &n_layers);
+#endif
+    }
+
   /* FIXME: is this still true? */
   /* Cogl currently can't cope with more than 32 layers so we'll also
      limit the maximum to that. */
@@ -223,6 +237,51 @@ test_invalid_texture_layers_with_constant_colors (TestState *state,
 }
 
 static void
+basic_ref_counting_destroy_cb (void *user_data)
+{
+  gboolean *destroyed_flag = user_data;
+
+  g_assert (*destroyed_flag == FALSE);
+
+  *destroyed_flag = TRUE;
+}
+
+static void
+test_basic_ref_counting (void)
+{
+  CoglMaterial *material_parent;
+  gboolean parent_destroyed = FALSE;
+  CoglMaterial *material_child;
+  gboolean child_destroyed = FALSE;
+  static CoglUserDataKey user_data_key;
+
+  /* This creates a material with a copy and then just unrefs them
+     both without setting them as a source. They should immediately be
+     freed. We can test whether they were freed or not by registering
+     a destroy callback with some user data */
+
+  material_parent = cogl_material_new ();
+  /* Set some user data so we can detect when the material is
+     destroyed */
+  cogl_object_set_user_data (COGL_OBJECT (material_parent),
+                             &user_data_key,
+                             &parent_destroyed,
+                             basic_ref_counting_destroy_cb);
+
+  material_child = cogl_material_copy (material_parent);
+  cogl_object_set_user_data (COGL_OBJECT (material_child),
+                             &user_data_key,
+                             &child_destroyed,
+                             basic_ref_counting_destroy_cb);
+
+  cogl_object_unref (material_child);
+  cogl_object_unref (material_parent);
+
+  g_assert (parent_destroyed);
+  g_assert (child_destroyed);
+}
+
+static void
 on_paint (ClutterActor *actor, TestState *state)
 {
   test_invalid_texture_layers (state,
@@ -234,6 +293,8 @@ on_paint (ClutterActor *actor, TestState *state)
   test_using_all_layers (state,
                          2, 0 /* position */
                          );
+
+  test_basic_ref_counting ();
 
   /* Comment this out if you want visual feedback for what this test paints */
 #if 1

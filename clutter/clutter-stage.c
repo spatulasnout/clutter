@@ -1176,6 +1176,47 @@ _clutter_stage_has_full_redraw_queued (ClutterStage *stage)
     return FALSE;
 }
 
+/**
+ * clutter_stage_get_redraw_clip_bounds:
+ * @stage: A #ClutterStage
+ * @clip: (out caller-allocates): Return location for the clip bounds
+ *
+ * Gets the bounds of the current redraw for @stage in stage pixel
+ * coordinates. E.g., if only a single actor has queued a redraw then
+ * Clutter may redraw the stage with a clip so that it doesn't have to
+ * paint every pixel in the stage. This function would then return the
+ * bounds of that clip. An application can use this information to
+ * avoid some extra work if it knows that some regions of the stage
+ * aren't going to be painted. This should only be called while the
+ * stage is being painted. If there is no current redraw clip then
+ * this function will set @clip to the full extents of the stage.
+ *
+ * Since: 1.8
+ */
+void
+clutter_stage_get_redraw_clip_bounds (ClutterStage          *stage,
+                                      cairo_rectangle_int_t *clip)
+{
+  ClutterStagePrivate *priv;
+
+  g_return_if_fail (CLUTTER_IS_STAGE (stage));
+  g_return_if_fail (clip != NULL);
+
+  priv = stage->priv;
+
+  if (!_clutter_stage_window_get_redraw_clip_bounds (priv->impl, clip))
+    {
+      ClutterGeometry geometry;
+
+      /* Set clip to the full extents of the stage */
+      _clutter_stage_window_get_geometry (priv->impl, &geometry);
+      clip->x = 0;
+      clip->y = 0;
+      clip->width = geometry.width;
+      clip->height = geometry.height;
+    }
+}
+
 static void
 read_pixels_to_file (char *filename_stem,
                      int   x,
@@ -1220,7 +1261,8 @@ _clutter_stage_do_pick (ClutterStage   *stage,
   guchar pixel[4] = { 0xff, 0xff, 0xff, 0xff };
   CoglColor stage_pick_id;
   guint32 id_;
-  GLboolean dither_was_on;
+  gboolean dither_enabled_save;
+  CoglFramebuffer *fb;
   ClutterActor *actor;
   gboolean is_clipped;
   CLUTTER_STATIC_COUNTER (do_pick_counter,
@@ -1328,9 +1370,9 @@ _clutter_stage_do_pick (ClutterStage   *stage,
   CLUTTER_TIMER_STOP (_clutter_uprof_context, pick_clear);
 
   /* Disable dithering (if any) when doing the painting in pick mode */
-  dither_was_on = glIsEnabled (GL_DITHER);
-  if (dither_was_on)
-    glDisable (GL_DITHER);
+  fb = cogl_get_draw_framebuffer ();
+  dither_enabled_save = cogl_framebuffer_get_dither_enabled (fb);
+  cogl_framebuffer_set_dither_enabled (fb, FALSE);
 
   /* Render the entire scence in pick mode - just single colored silhouette's
    * are drawn offscreen (as we never swap buffers)
@@ -1381,8 +1423,7 @@ _clutter_stage_do_pick (ClutterStage   *stage,
     }
 
   /* Restore whether GL_DITHER was enabled */
-  if (dither_was_on)
-    glEnable (GL_DITHER);
+  cogl_framebuffer_set_dither_enabled (fb, dither_enabled_save);
 
   if (pixel[0] == 0xff && pixel[1] == 0xff && pixel[2] == 0xff)
     {

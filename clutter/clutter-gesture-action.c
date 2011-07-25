@@ -133,6 +133,18 @@ stage_captured_event_cb (ClutterActor       *stage,
     {
     case CLUTTER_MOTION:
       {
+        ClutterModifierType mods = clutter_event_get_state (event);
+
+        /* we might miss a button-release event in case of grabs,
+         * so we need to check whether the button is still down
+         * during a motion event
+         */
+        if (!(mods & CLUTTER_BUTTON1_MASK))
+          {
+            cancel_gesture (action);
+            return FALSE;
+          }
+
         clutter_event_get_coords (event, &priv->last_motion_x,
                                          &priv->last_motion_y);
 
@@ -159,7 +171,10 @@ stage_captured_event_cb (ClutterActor       *stage,
                 g_signal_emit (action, gesture_signals[GESTURE_BEGIN], 0, actor,
                                &return_value);
                 if (!return_value)
-                  cancel_gesture (action);
+                  {
+                    cancel_gesture (action);
+                    return FALSE;
+                  }
               }
             else
               return FALSE;
@@ -168,7 +183,10 @@ stage_captured_event_cb (ClutterActor       *stage,
           g_signal_emit (action, gesture_signals[GESTURE_PROGRESS], 0, actor,
                          &return_value);
           if (!return_value)
-            cancel_gesture (action);
+            {
+              cancel_gesture (action);
+              return FALSE;
+            }
       }
       break;
 
@@ -254,6 +272,13 @@ clutter_gesture_action_set_actor (ClutterActorMeta *meta,
   meta_class->set_actor (meta, actor);
 }
 
+static gboolean
+default_event_handler (ClutterGestureAction *action,
+                       ClutterActor *actor)
+{
+  return TRUE;
+}
+
 static void
 clutter_gesture_action_class_init (ClutterGestureActionClass *klass)
 {
@@ -262,6 +287,9 @@ clutter_gesture_action_class_init (ClutterGestureActionClass *klass)
   g_type_class_add_private (klass, sizeof (ClutterGestureActionPrivate));
 
   meta_class->set_actor = clutter_gesture_action_set_actor;
+
+  klass->gesture_begin = default_event_handler;
+  klass->gesture_progress = default_event_handler;
 
   /**
    * ClutterGestureAction::gesture-begin:

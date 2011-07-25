@@ -94,6 +94,9 @@ AS_CASE([$host],
 AC_MSG_RESULT([$platform_win32])
 AM_CONDITIONAL(OS_WIN32, [test "$platform_win32" = "yes"])
 
+AC_CHECK_HEADER([OpenGL/gl.h], [platform_quartz=yes], [platform_quartz=no])
+AM_CONDITIONAL(OS_QUARTZ, [test "$platform_quartz" = "yes"])
+
 AC_SUBST(CLUTTER_LT_VERSION)
 AC_SUBST(CLUTTER_LT_LDFLAGS)
 
@@ -167,7 +170,10 @@ AC_SUBST(CLUTTER_LINK_FLAGS)
 dnl ========================================================================
 
 # defaults
-CLUTTER_FLAVOUR=glx
+AS_IF([test "x$platform_win32" = "xyes"],  [CLUTTER_FLAVOUR=win32],
+      [test "x$platform_quartz" = "xyes"], [CLUTTER_FLAVOUR=osx],
+      [CLUTTER_FLAVOUR=glx])
+
 FLAVOUR_LIBS=""
 FLAVOUR_CFLAGS=""
 CLUTTER_WINSYS_BASE=
@@ -353,7 +359,6 @@ AS_CASE([$CLUTTER_FLAVOUR],
 
         [osx],
         [
-          experimental_backend="yes"
           CLUTTER_STAGE_TYPE="CLUTTER_TYPE_STAGE_OSX"
 
           AC_DEFINE([HAVE_CLUTTER_OSX], [1], [Have the OSX backend])
@@ -587,6 +592,23 @@ AS_IF([test "x$SUPPORT_XLIB" = "x1"],
               [AC_MSG_ERROR([not found])]
         )
 
+        # X Generic Extensions (optional)
+        clutter_save_CPPFLAGS="$CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $X11_CFLAGS"
+
+        clutter_save_LIBS="$LIBS"
+        LIBS="$LIBS $X11_LIBS"
+
+        have_xge=no
+        AC_CHECK_FUNC([XGetEventData],
+                      [
+                        AC_DEFINE([HAVE_XGE], [1], [Define to 1 if X Generic Extensions is available])
+                        have_xge=yes
+                      ])
+
+        CPPFLAGS="$clutter_save_CPPFLAGS"
+        LIBS="$clutter_save_LIBS"
+
         # XI (optional)
         AC_ARG_ENABLE([xinput],
                       [AS_HELP_STRING([--enable-xinput], [Use the XI X extension])],
@@ -662,7 +684,7 @@ dnl === Enable debug level ====================================================
 m4_define([debug_default], [m4_if(m4_eval(clutter_minor_version % 2), [1], [yes], [minimum])])
 AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--enable-debug=@<:@no/minimum/yes@:>@],
-                              [Control Clutter debugging level @<:@default=debug_default@:>@])],
+                              [Control Clutter debugging level @<:@default=]debug_default[@:>@])],
               [],
               [enable_debug=debug_default])
 
@@ -695,7 +717,7 @@ m4_define([deprecated_default],
 
 AC_ARG_ENABLE([deprecated],
               [AS_HELP_STRING([--enable-deprecated=@<:@no/yes@:>@],
-                              [Whether deprecated symbols should be disabled when compiling Clutter])],
+                              [Whether deprecated symbols should be disabled when compiling Clutter @<:@default=]deprecated_default[@:>@])],
               [],
               [enable_deprecated=deprecated_default])
 
@@ -802,7 +824,7 @@ dnl === Enable strict compiler flags ==========================================
 m4_define([maintainer_flags_default], [m4_if(m4_eval(clutter_micro_version % 2), [1], [yes], [no])])
 AC_ARG_ENABLE([maintainer-flags],
               [AS_HELP_STRING([--enable-maintainer-flags=@<:@no/yes/error@:>@],
-                              [Use strict compiler flags @<:@default=maintainer_flags_default@:>@])],
+                              [Use strict compiler flags @<:@default=]maintainer_flags_default[@:>@])],
               [],
               [enable_maintainer_flags=maintainer_flags_default])
 
@@ -958,8 +980,6 @@ AC_CONFIG_FILES([
 	doc/reference/cally/Makefile
 	doc/reference/cally/cally-docs.xml
 	doc/common/Makefile
-	doc/manual/Makefile
-	doc/manual/clutter-manual.xml
 	doc/cookbook/Makefile
 	doc/cookbook/clutter-cookbook.xml
 	doc/cookbook/examples/Makefile
@@ -1015,6 +1035,7 @@ fi
 if test "x$SUPPORT_XLIB" = "x1"; then
 echo "        Enable XComposite: ${have_xcomposite}"
 echo "        Enable XInput: ${have_xinput}"
+echo "        Enable Xge: ${have_xge}"
 echo "        Enable XI2: ${have_xinput2}"
 echo "        Enable XKB: ${have_xkb}"
 echo "        Enable X11 tests: ${x11_tests}"

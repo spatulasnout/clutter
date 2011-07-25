@@ -6122,10 +6122,10 @@ clutter_actor_get_allocation_geometry (ClutterActor    *self,
 
   clutter_actor_get_allocation_box (self, &box);
 
-  geom->x = clutter_actor_box_get_x (&box);
-  geom->y = clutter_actor_box_get_y (&box);
-  geom->width = clutter_actor_box_get_width (&box);
-  geom->height = clutter_actor_box_get_height (&box);
+  geom->x = CLUTTER_NEARBYINT (clutter_actor_box_get_x (&box));
+  geom->y = CLUTTER_NEARBYINT (clutter_actor_box_get_y (&box));
+  geom->width = CLUTTER_NEARBYINT (clutter_actor_box_get_width (&box));
+  geom->height = CLUTTER_NEARBYINT (clutter_actor_box_get_height (&box));
 }
 
 /**
@@ -6154,7 +6154,7 @@ clutter_actor_allocate (ClutterActor           *self,
   ClutterActorPrivate *priv;
   ClutterActorClass *klass;
   ClutterActorBox alloc;
-  gboolean child_moved;
+  gboolean origin_changed, child_moved, size_changed;
   gboolean stage_allocation_changed;
 
   g_return_if_fail (CLUTTER_IS_ACTOR (self));
@@ -6185,13 +6185,15 @@ clutter_actor_allocate (ClutterActor           *self,
         }
     }
 
+  origin_changed = (flags & CLUTTER_ABSOLUTE_ORIGIN_CHANGED);
+
   child_moved = (alloc.x1 != priv->allocation.x1 ||
                  alloc.y1 != priv->allocation.y1);
 
-  if (flags & CLUTTER_ABSOLUTE_ORIGIN_CHANGED ||
-      child_moved ||
-      alloc.x2 != priv->allocation.x2 ||
-      alloc.y2 != priv->allocation.y2)
+  size_changed = (alloc.x2 != priv->allocation.x2 ||
+                  alloc.y2 != priv->allocation.y2);
+
+  if (origin_changed || child_moved || size_changed)
     stage_allocation_changed = TRUE;
   else
     stage_allocation_changed = FALSE;
@@ -9490,8 +9492,6 @@ clutter_actor_find_property (ClutterAnimatable *animatable,
       klass = G_OBJECT_GET_CLASS (meta);
 
       pspec = g_object_class_find_property (klass, p_name);
-
-      g_free (p_name);
     }
   else
     {
@@ -9499,6 +9499,8 @@ clutter_actor_find_property (ClutterAnimatable *animatable,
 
       pspec = g_object_class_find_property (klass, property_name);
     }
+
+  g_free (p_name);
 
   return pspec;
 }
